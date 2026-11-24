@@ -1,0 +1,10 @@
+* text=auto eol=lf
+Makefile linguist-vendored=true
+*.yaml linguist-detectable=true
+*.yml linguist-detectable=true
+*.sh linguist-detectable=true
+*.py linguist-detectable=true
+*.nft linguist-detectable=true
+*.conf linguist-detectable=true
+*.ts linguist-detectable=true
+*.tsx linguist-detectable=true

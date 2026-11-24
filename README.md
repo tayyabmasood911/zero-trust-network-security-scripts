@@ -1,128 +1,105 @@
-# :rocket: Zero Trust Network Security Scripts
+# Zero Trust Network Security & Microsegmentation Suite
 
-<div align="center">
+[![CI Validation](https://github.com/tayyabmasood911/zero-trust-network-security-scripts/actions/workflows/ci.yml/badge.svg)](https://github.com/tayyabmasood911/zero-trust-network-security-scripts/actions)
+[![Security Policy](https://img.shields.io/badge/Security-Policy-blue.svg)](SECURITY.md)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![Zero Trust](https://img.shields.io/badge/NIST-SP%20800--207-blueviolet.svg)](https://csrc.nist.gov/publications/detail/sp/800-207/final)
+[![SPIFFE/SPIRE](https://img.shields.io/badge/SPIFFE-Identity%20Mesh-brightgreen.svg)](https://spiffe.io)
 
-[![Status](https://img.shields.io/badge/status-production--ready-brightgreen?style=for-the-badge&logo=git)]()
-[![Domain](https://img.shields.io/badge/domain-DevSecOps--and--CI/CD-blueviolet?style=for-the-badge)]()
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](LICENSE)
-[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=for-the-badge&logo=github)](https://github.com/T9113/zero-trust-network-security-scripts/pulls)
-[![Security Hardened](https://img.shields.io/badge/security-hardened-red?style=for-the-badge&logo=shield)]()
-
-</div>
+An enterprise-grade Zero Trust infrastructure security and microsegmentation suite. Features automated Mutual TLS (mTLS) PKI certificate generation with SPIFFE ID URIs, strict host-level default-deny `nftables` packet filtering with watchdog rollback protection, and SPIRE node agent workload attestation configuration.
 
 ---
 
-## :memo: Executive Summary
+## Architectural Blueprint
 
-**Zero Trust Network Security Scripts** is an enterprise-grade production engineering implementation designed for mission-critical deployments. Built to meet stringent requirements for **99.99% availability**, zero-trust security boundaries, automated resilience, and seamless CI/CD delivery.
+Embodying NIST SP 800-207 Zero Trust principles ("never trust, always verify"), the architecture binds workload identity to short-lived cryptographic X.509 SVIDs while sealing host network boundaries with default-deny kernel microsegmentation:
 
-Key operational outcomes:
-- **Resilience:** Multi-zone high availability with automated fault detection and recovery.
-- **Scalability:** Elastic horizontal scaling responsive to real-time workload demand.
-- **Security:** Strict adherence to least-privilege RBAC, encrypted communications, and zero committed secrets.
-- **Maintainability:** Modular, declarative configuration aligned with cloud-native industry standards.
+![Zero Trust Architecture](docs/architecture.svg)
 
 ---
 
-## :building_construction: System Architecture
+## Suite Components & Directory Structure
 
-```text
-+-------------------------------------------------------------------------------+
-|                       Zero Trust Network Security Scripts Architecture Blueprint                    |
-|                                                                               |
-|   [Client Ingress] ===> [API Gateway / Traffic Router (TLS 1.3 / mTLS)]       |
-|                                     |                                         |
-|                                     v                                         |
-|                         [Core Workload Cluster]                               |
-|                         (Multi-Replica / Multi-AZ)                            |
-|                                     |                                         |
-|                 +-------------------+-------------------+                     |
-|                 |                                       |                     |
-|                 v                                       v                     |
-|     [Persistence & Storage Layer]           [Observability & Telemetry Engine]|
-|      (Encrypted at Rest / KMS)              (Prometheus / OTLP / OpenSearch)  |
-+-------------------------------------------------------------------------------+
+```
+zero-trust-network-security-scripts/
+├── mtls/
+│   ├── generate_mtls_certs.sh           # OpenSSL PKI generator (Root CA, Intermediate CA, SVIDs)
+│   └── mtls_cert_manager.py             # Python certificate inspector & SPIFFE URI validator
+├── firewall/
+│   ├── nftables-zero-trust-default-deny.nft  # Strict default-deny ingress/egress ruleset
+│   └── apply-firewall.sh                # Safe deployment wrapper with 20s watchdog auto-revert
+├── spire/
+│   ├── agent.conf                       # Production SPIRE Node Agent configuration
+│   ├── server.conf                      # SPIRE Server configuration (SQLite/PostgreSQL)
+│   └── register-workload.sh             # SPIFFE SVID workload registration script
+├── scripts/
+│   └── healthcheck.sh                   # Environment & configuration self-test
+├── tests/
+│   └── test_validation.py              # Automated test suite
+└── docs/
+    └── architecture.svg                 # White-theme visual architecture diagram
 ```
 
 ---
 
-## :sparkles: Key Enterprise Capabilities
+## Core Capabilities
 
-- :zap: **High Availability & Fault Tolerance:** Eliminates single points of failure via multi-node redundancy and health check probes.
-- :shield: **Zero-Trust Security Posture:** Enforces non-root runtime environments, ephemeral credentials, and automated vulnerability scanning.
-- :chart_with_upwards_trend: **Elastic Autoscaling:** Dynamic resource provisioning based on custom throughput, memory pressure, and queue depth.
-- :mag: **Full-Stack Observability:** Standardized structured telemetry, metrics instrumentation, and distributed request tracing.
-- :package: **GitOps & CI/CD Automation:** Infrastructure and configuration managed declaratively with automated testing and continuous deployment.
-
----
-
-## :file_folder: Repository Directory Structure
-
-```text
-.
-|-- config/              # Declarative configuration and environment definitions
-|-- src/                 # Production source code and manifests
-|-- scripts/             # Operational automation, setup, and maintenance scripts
-|-- tests/               # Comprehensive validation and unit test suites
-|-- LICENSE              # MIT Open Source License
-`-- README.md            # Enterprise architectural documentation
-```
+- **Mutual TLS PKI Automation (`mtls/`):** Generates Root and Intermediate Certificate Authorities using ECDSA P-256 curves. Mints server and client certificates embedded with Subject Alternative Names (SANs) and SPIFFE ID URIs (`spiffe://enterprise.cloud.corp/ns/prod/sa/...`).
+- **Strict Default-Deny Kernel Firewall (`firewall/`):** Implements an `nftables` policy that drops all ingress and egress packets by default. Permits only loopback, stateful conntrack responses (`ct state established,related`), rate-limited SSH (3 connections/minute), and authorized service ports (8443, 8081, 53).
+- **Watchdog Auto-Rollback Engine:** `firewall/apply-firewall.sh` triggers a background watchdog timer during ruleset deployment. If connectivity validation fails, it automatically reverts to the previous firewall state within 20 seconds, eliminating SSH lockout risks.
+- **SPIFFE / SPIRE Workload Attestation (`spire/`):** Provisions SPIRE Node Agent and Server configurations that continuously issue and rotate short-lived X.509 SVID credentials for Unix processes, Docker containers, and Kubernetes pods.
 
 ---
 
-## :zap: Quick Start & Deployment
+## Quick Start & Usage
 
-### Prerequisites
-- Git `>= 2.40`
-- Docker Engine `>= 24.0` / Cloud CLI (AWS / GCP / Azure / Kubernetes)
-
-### Deployment Steps
+### 1. Generate Mutual TLS PKI Certificates
 ```bash
-# 1. Clone the repository
-git clone https://github.com/T9113/zero-trust-network-security-scripts.git
-cd zero-trust-network-security-scripts
+# Generate complete Root CA, Intermediate CA, Server, and Client certs
+bash mtls/generate_mtls_certs.sh ./certs enterprise.cloud.corp 365
 
-# 2. Inspect and configure environment parameters
-cp config/example.env config/.env
+# Inspect and verify certificate validity
+python3 mtls/mtls_cert_manager.py --cert certs/server.crt
+```
 
-# 3. Validate configurations and syntax
-# Run linters, dry-run validations, or unit test suites
+### 2. Safely Deploy Default-Deny Nftables Firewall
+```bash
+# Apply strict default-deny ruleset with automatic rollback safety net
+sudo bash firewall/apply-firewall.sh firewall/nftables-zero-trust-default-deny.nft
+```
 
-# 4. Deploy workloads / infrastructure
-# Execute deployment manifests or container runtime
+### 3. Start SPIRE Node Agent
+```bash
+# Copy agent config to SPIRE directory
+sudo cp spire/agent.conf /etc/spire/agent.conf
+
+# Start SPIRE agent daemon
+spire-agent run -config /etc/spire/agent.conf
 ```
 
 ---
 
-## :gear: Configuration Reference
+## Local Verification & Testing
 
-| Parameter | Type | Default | Description |
-| :--- | :--- | :--- | :--- |
-| `ENVIRONMENT` | string | `production` | Deployment environment target (`staging`, `production`) |
-| `LOG_LEVEL` | string | `info` | Structured logging verbosity (`debug`, `info`, `warn`, `error`) |
-| `METRICS_ENABLED` | boolean | `true` | Enables real-time Prometheus / OpenTelemetry telemetry export |
-| `TLS_MIN_VERSION` | string | `TLSv1.3` | Minimum allowable TLS protocol version for network traffic |
+```bash
+# Run unit test suite
+python3 -m unittest discover -s tests -p "test_*.py"
 
----
+# Execute healthcheck probe
+bash scripts/healthcheck.sh
 
-## :lock: Security, Compliance & Governance
-
-1. **Least-Privilege Execution:** Services run under restricted service accounts with zero root permissions.
-2. **Encrypted Data In-Flight & At-Rest:** AES-256 / KMS envelope encryption for persistent state and TLS 1.3 for network transport.
-3. **Automated Supply Chain Security:** All dependencies and container images verified against CVE databases using Trivy and Semgrep.
-4. **Zero-Secret Guarantee:** No hardcoded tokens, passwords, or private keys exist in this codebase.
+# Test mTLS manager mock mode
+python3 mtls/mtls_cert_manager.py --mock-test
+```
 
 ---
 
-## :bust_in_silhouette: Author & Maintainer
+## Security Governance & Disclosure
 
-**Tayyab Masood**  
-Cloud Solutions Architect & Senior DevOps Engineer  
-- :globe_with_meridians: **GitHub:** [@T9113](https://github.com/T9113)  
-- :scroll: **Certification:** AWS Certified Solutions Architect - Associate  
+For vulnerability disclosures or policy questions, review our [Responsible Disclosure Policy](SECURITY.md) or email maintainer **Tayyab Masood** at [tayyabmasood911@gmail.com](mailto:tayyabmasood911@gmail.com).
 
 ---
 
-## :page_facing_up: License
+## License
 
-This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) file for details.
+Licensed under the MIT License. See [LICENSE](LICENSE) for details.
